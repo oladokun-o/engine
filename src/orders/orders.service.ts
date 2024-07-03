@@ -100,9 +100,8 @@ export class OrdersService {
     if (!user) {
       throw new Error('Courier not found or invalid role');
     } else if (user.role === 'courier') {
-
+      order.courier = user;
     } else if (user.role === 'customer') {
-      
     }
 
     if (
@@ -117,7 +116,6 @@ export class OrdersService {
     }
 
     order.status = dto.status;
-    order.courier = courier;
 
     await this.orderRepository.save(order);
 
