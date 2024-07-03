@@ -15,14 +15,14 @@ export class EmailService {
       port: 465,
       secure: true,
       auth: {
-        user: user + '@qmemoirdrop.ru',
+        user: user + '@footiedrop.ru',
         pass: process.env.EMAIL_PASSWORD,
       },
     });
 
     // Define email options
     const mailOptions = {
-      from: user + '@qmemoirdrop.ru',
+      from: user + '@qmemoir.com',
       to,
       subject,
       text,

@@ -1,22 +1,25 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/entities/user.entity';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from 'src/schemas/user.schema';
+import {
+  VerificationOtp,
+  VerificationOtpDocument,
+} from 'src/schemas/verify.schema';
 import { RequestResponse } from '../core/interfaces/index.interface';
 import { CreateUserDto, SendPasswordResetEmailDto } from '../core/dto/user.dto';
 import { EmailService } from '../core/services/mailer.service';
-import { VerificationOtp } from 'src/entities/verify.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private mailerService: EmailService,
-    @InjectRepository(VerificationOtp)
-    private otpRepository: Repository<VerificationOtp>,
+    @InjectModel(VerificationOtp.name)
+    private otpModel: Model<VerificationOtpDocument>,
     private jwtService: JwtService,
   ) {}
 
@@ -26,12 +29,12 @@ export class UserService {
    */
   async findAll(): Promise<RequestResponse> {
     try {
-      const users = await this.userRepository.find();
+      const users = await this.userModel.find().exec();
       return {
         result: 'success',
         message: 'Users fetched successfully',
         data: users.map((u) => {
-          return { ...u };
+          return { ...u.toObject() };
         }),
       };
     } catch (error) {
@@ -46,7 +49,7 @@ export class UserService {
    */
   async findOneById(id: string): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({ where: { id } });
+      const user = await this.userModel.findById(id).exec();
       if (!user) {
         return {
           result: 'error',
@@ -57,7 +60,7 @@ export class UserService {
       return {
         result: 'success',
         message: 'User fetched successfully',
-        data: { ...user, password: undefined },
+        data: { ...user.toObject(), password: undefined },
       };
     } catch (error) {
       throw new Error('Failed to fetch user.');
@@ -71,7 +74,7 @@ export class UserService {
    */
   async findOneByEmail(email: string): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({ where: { email } });
+      const user = await this.userModel.findOne({ email }).exec();
       if (!user) {
         return {
           result: 'error',
@@ -82,7 +85,7 @@ export class UserService {
       return {
         result: 'success',
         message: 'User fetched successfully',
-        data: { ...user, password: undefined },
+        data: { ...user.toObject(), password: undefined },
       };
     } catch (error) {
       throw new Error('Failed to fetch user.');
@@ -97,9 +100,11 @@ export class UserService {
   async create(createUserDto: CreateUserDto): Promise<RequestResponse> {
     try {
       // check if user with email already exists
-      const userWithEmailExists = await this.userRepository.findOne({
-        where: { email: createUserDto.email },
-      });
+      const userWithEmailExists = await this.userModel
+        .findOne({
+          email: createUserDto.email,
+        })
+        .exec();
 
       if (userWithEmailExists) {
         return {
@@ -110,9 +115,11 @@ export class UserService {
       }
 
       // check if user with phone number already exists
-      const userWithPhoneExists = await this.userRepository.findOne({
-        where: { phone: createUserDto.phone },
-      });
+      const userWithPhoneExists = await this.userModel
+        .findOne({
+          phone: createUserDto.phone,
+        })
+        .exec();
 
       if (userWithPhoneExists) {
         return {
@@ -134,27 +141,28 @@ export class UserService {
 
       const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-      const user = await this.userRepository.save({
+      const user = new this.userModel({
         ...rest,
         password: hashedPassword,
       });
+      await user.save();
 
       // Send welcome email to user
-      const message = `Welcome to our platform, ${createUserDto.firstName}!`;
-      await this.mailerService.sendEmail(
-        'team',
-        createUserDto.email,
-        'Welcome to qmemoirdrop!',
-        message,
-      );
+      // const message = `Welcome to our platform, ${createUserDto.firstName}!`;
+      // await this.mailerService.sendEmail(
+      //   'team',
+      //   createUserDto.email,
+      //   'Welcome to qmemoirdrop!',
+      //   message,
+      // );
 
       // Generate OTP for user verification and send it to the user
-      const otpResponse = await this.generateOtp(createUserDto.email);
+      // const otpResponse = await this.generateOtp(createUserDto.email);
 
-      if (otpResponse.result === 'error') {
-        // Handle error generating OTP
-        return otpResponse;
-      }
+      // if (otpResponse.result === 'error') {
+      // Handle error generating OTP
+      //   return otpResponse;
+      // }
 
       return {
         result: 'success',
@@ -162,6 +170,7 @@ export class UserService {
         data: user,
       };
     } catch (error) {
+      console.log(error);
       return {
         result: 'error',
         message: error.message || 'Failed to create user',
@@ -179,9 +188,7 @@ export class UserService {
    */
   async generateOtp(email: string, resend?: boolean): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({
-        where: { email },
-      });
+      const user = await this.userModel.findOne({ email }).exec();
 
       if (!user) {
         return {
@@ -192,13 +199,12 @@ export class UserService {
       }
 
       const otp = Math.floor(1000 + Math.random() * 9000).toString();
-      const oldOtp = await this.otpRepository.findOne({
-        where: { userId: user.id },
-      });
+      const oldOtp = await this.otpModel.findOne({ userId: user._id }).exec();
       if (oldOtp && resend) {
-        await this.otpRepository.delete(oldOtp.id);
+        await this.otpModel.deleteOne({ _id: oldOtp._id }).exec();
       }
-      const newOtp = await this.otpRepository.save({ userId: user.id, otp });
+      const newOtp = new this.otpModel({ userId: user._id, otp });
+      await newOtp.save();
 
       const message = `Your verification code is ${otp} /n This code expires in 5 minutes.`;
       await this.mailerService.sendEmail(
@@ -212,11 +218,12 @@ export class UserService {
         result: 'success',
         message: 'OTP generated successfully',
         data: {
-          userId: user.id,
+          userId: user._id,
           expires_at: newOtp.expires_at,
         },
       };
     } catch (error) {
+      console.log(error);
       return {
         result: 'error',
         message: error.message || 'Failed to generate OTP',
@@ -235,9 +242,7 @@ export class UserService {
    */
   async verifyOtp(email: string, otp: string): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({
-        where: { email },
-      });
+      const user = await this.userModel.findOne({ email }).exec();
 
       if (!user) {
         return {
@@ -255,9 +260,12 @@ export class UserService {
         };
       }
 
-      const otpRecord = await this.otpRepository.findOne({
-        where: { userId: user.id, otp },
-      });
+      const otpRecord = await this.otpModel
+        .findOne({
+          userId: user._id,
+          otp,
+        })
+        .exec();
 
       if (!otpRecord) {
         return {
@@ -277,12 +285,11 @@ export class UserService {
       }
 
       // Update user verification status
-      await this.userRepository.update(user.id, {
-        settings: { verified: true },
-      });
+      user.settings.verified = true;
+      await user.save();
 
       // Delete the OTP record
-      await this.otpRepository.delete(otpRecord.id);
+      await this.otpModel.deleteOne({ _id: otpRecord._id }).exec();
 
       return {
         result: 'success',
@@ -307,9 +314,9 @@ export class UserService {
     payload: SendPasswordResetEmailDto,
   ): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({
-        where: { email: payload.email },
-      });
+      const user = await this.userModel
+        .findOne({ email: payload.email })
+        .exec();
 
       if (!user) {
         return {
@@ -347,11 +354,12 @@ export class UserService {
    */
   async generateResetToken(
     payload: SendPasswordResetEmailDto,
+    resend?: boolean,
   ): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({
-        where: { email: payload.email },
-      });
+      const user = await this.userModel
+        .findOne({ email: payload.email })
+        .exec();
 
       if (!user) {
         return {
@@ -361,36 +369,33 @@ export class UserService {
         };
       }
 
-      // generate token with jwt and set expiry time, and save it to the user
-      const token = await this.jwtService.signAsync(payload, {
-        secret: 'asaskhawew',
-        expiresIn: '10m',
+      const payloadToken = { email: user.email, userId: user._id };
+
+      const token = this.jwtService.sign(payloadToken, {
+        expiresIn: '1d',
+        secret: process.env.JWT_RESET_PASSWORD_SECRET,
       });
 
-      // save the token to the user
-      await this.userRepository.update(user.id, { resetPasswordToken: token });
-
-      // send reset password link back to the user
-      // set the link based on the environment variable
-      const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
-
-      // send email to user
-      const message = `Click the link below to reset your password: ${resetLink}`;
+      const message = `
+        <h3>Hello, ${user.firstName}</h3>
+        <p>You've requested to reset your password. Please use the link below to reset your password.</p>
+        <p><a href="http://localhost:3000/auth/reset-password?token=${token}">Reset Password</a></p>
+        <p>If you did not request this, please ignore this email.</p>
+      `;
 
       await this.mailerService.sendEmail(
         'team',
         user.email,
-        'Password Reset',
+        'Password Reset Request',
         message,
       );
 
       return {
         result: 'success',
-        message: 'Password reset email sent successfully',
-        data: null,
+        message: 'Reset token generated successfully',
+        data: token,
       };
     } catch (error) {
-      console.log(error);
       return {
         result: 'error',
         message: error.message || 'Failed to generate reset token',
@@ -400,28 +405,25 @@ export class UserService {
   }
 
   /**
-   * Verify Reset password token
+   * Validate reset password token
    * @param {string} token
-   * @return {Promise<RequestResponse>}
-   * @description Checks if the token is valid and not expired by checking the token validity using jwt and checking the database
+   * @returns {Promise<RequestResponse>}
    */
-  async verifyResetToken(token: string): Promise<RequestResponse> {
+  async validateResetToken(token: string): Promise<RequestResponse> {
     try {
-      const decoded = this.jwtService.verify(token, {
-        secret: 'asaskhawew',
+      const payload = this.jwtService.verify(token, {
+        secret: process.env.JWT_RESET_PASSWORD_SECRET,
       });
 
-      if (!decoded) {
+      if (!payload) {
         return {
           result: 'error',
-          message: 'Token expired',
+          message: 'Invalid token',
           data: null,
         };
       }
 
-      const user = await this.userRepository.findOne({
-        where: { email: decoded.email },
-      });
+      const user = await this.userModel.findById(payload.userId).exec();
 
       if (!user) {
         return {
@@ -431,23 +433,15 @@ export class UserService {
         };
       }
 
-      if (user.resetPasswordToken !== token) {
-        return {
-          result: 'error',
-          message: 'Invalid token',
-          data: { valid: false },
-        };
-      }
-
       return {
         result: 'success',
-        message: 'Token verified successfully',
-        data: { valid: true },
+        message: 'Token validated successfully',
+        data: user,
       };
     } catch (error) {
       return {
         result: 'error',
-        message: error.message || 'Failed to verify token',
+        message: error.message || 'Failed to validate token',
         data: null,
       };
     }
@@ -455,30 +449,16 @@ export class UserService {
 
   /**
    * Update user password
-   * @param {string} token
+   * @param {string} userId
    * @param {string} password
    * @returns {Promise<RequestResponse>}
    */
   async updatePassword(
-    token: string,
+    email: string,
     password: string,
   ): Promise<RequestResponse> {
     try {
-      const decoded = this.jwtService.verify(token, {
-        secret: 'asaskhawew',
-      });
-
-      if (!decoded) {
-        return {
-          result: 'error',
-          message: 'Token expired',
-          data: null,
-        };
-      }
-
-      const user = await this.userRepository.findOne({
-        where: { email: decoded.email },
-      });
+      const user = await this.userModel.findOne({ email }).exec();
 
       if (!user) {
         return {
@@ -488,17 +468,9 @@ export class UserService {
         };
       }
 
-      if (user.resetPasswordToken !== token) {
-        return {
-          result: 'error',
-          message: 'Invalid token',
-          data: null,
-        };
-      }
-
       const hashedPassword = await bcrypt.hash(password, 10);
-
-      await this.userRepository.update(user.id, { password: hashedPassword });
+      user.password = hashedPassword;
+      await user.save();
 
       return {
         result: 'success',
@@ -509,63 +481,6 @@ export class UserService {
       return {
         result: 'error',
         message: error.message || 'Failed to update password',
-        data: null,
-      };
-    }
-  }
-
-  /**
-   * Change email address
-   * @param {string} email
-   * @param {string} newEmail
-   * @returns {Promise<RequestResponse>}
-   * @todo Implement this method
-   */
-  async changeEmail(email: string, newEmail: string): Promise<RequestResponse> {
-    try {
-      const user = await this.userRepository.findOne({
-        where: { email },
-      });
-
-      if (!user) {
-        return {
-          result: 'error',
-          message: 'User not found',
-          data: null,
-        };
-      }
-
-      if (user.email === newEmail) {
-        return {
-          result: 'error',
-          message: 'Emails are the same',
-          data: null,
-        };
-      }
-
-      const userWithEmailExists = await this.userRepository.findOne({
-        where: { email: newEmail },
-      });
-
-      if (userWithEmailExists) {
-        return {
-          result: 'error',
-          message: 'User with email already exists',
-          data: null,
-        };
-      }
-
-      await this.userRepository.update(user.id, { email: newEmail });
-
-      return {
-        result: 'success',
-        message: 'Email updated successfully',
-        data: null,
-      };
-    } catch (error) {
-      return {
-        result: 'error',
-        message: error.message || 'Failed to update email',
         data: null,
       };
     }

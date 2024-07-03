@@ -1,20 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import {
   LoginUserWithEmailDto,
   LoginUserWithPhoneDto,
 } from 'src/core/dto/user.dto';
 import { RequestResponse } from 'src/core/interfaces/index.interface';
-import { User } from 'src/entities/user.entity';
-import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from 'src/schemas/user.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
   ) {}
 
@@ -30,9 +29,7 @@ export class AuthService {
     userDto: LoginUserWithEmailDto,
   ): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({
-        where: { email: userDto.email },
-      });
+      const user = await this.userModel.findOne({ email: userDto.email });
 
       if (!user) {
         return {
@@ -69,12 +66,13 @@ export class AuthService {
       const token = await this.jwtService.signAsync(jwtPayload);
 
       // Update last login date
-      await this.userRepository.update(user.id, {
-        lastLogin: new Date(),
-        token: token,
-      });
+      await this.userModel.updateOne(
+        { _id: user.id },
+        {
+          $set: { lastLogin: new Date(), token: token },
+        },
+      );
 
-      console.log('User logged in successfully', user);
       return {
         result: 'success',
         message: 'User logged in successfully',
@@ -106,9 +104,7 @@ export class AuthService {
     userDto: LoginUserWithPhoneDto,
   ): Promise<RequestResponse> {
     try {
-      const user = await this.userRepository.findOne({
-        where: { phone: userDto.phone },
-      });
+      const user = await this.userModel.findOne({ phone: userDto.phone });
 
       if (!user) {
         return {
@@ -145,10 +141,12 @@ export class AuthService {
       const token = await this.jwtService.signAsync(jwtPayload);
 
       // Update last login date
-      await this.userRepository.update(user.id, {
-        lastLogin: new Date(),
-        token: token,
-      });
+      await this.userModel.updateOne(
+        { _id: user.id },
+        {
+          $set: { lastLogin: new Date(), token: token },
+        },
+      );
 
       return {
         result: 'success',
@@ -206,9 +204,7 @@ export class AuthService {
       const { id } = await this.jwtService.verifyAsync(token.split(' ')[1]);
 
       // get user
-      const user = await this.userRepository.findOne({
-        where: { id },
-      });
+      const user = await this.userModel.findOne({ _id: id });
       if (!user) {
         return {
           result: 'error',
@@ -218,11 +214,13 @@ export class AuthService {
       }
 
       // delete token
-      await this.userRepository.update(user.id, {
-        token: null,
-      });
+      await this.userModel.updateOne(
+        { _id: user.id },
+        {
+          $set: { token: null },
+        },
+      );
 
-      console.log('User logged out successfully');
       return {
         result: 'success',
         message: 'User logged out successfully',

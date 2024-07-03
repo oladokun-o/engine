@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { SkipAuth } from 'src/core/decorators/meta.decorator';
 import {
-  ChangeEmailDto,
+  // ChangeEmailDto,
   CreateUserDto,
   ResendVerificationOtpDto,
   SendPasswordResetEmailDto,
@@ -75,23 +75,23 @@ export class UserController {
     return this.userService.resetPassword(payload);
   }
 
-  @SkipAuth()
-  @Get('verifyPasswordResetToken/:token')
-  verifyPasswordResetToken(
-    @Param('token') token: string,
-  ): Promise<RequestResponse> {
-    return this.userService.verifyResetToken(token);
-  }
+  // @SkipAuth()
+  // @Get('verifyPasswordResetToken/:token')
+  // verifyPasswordResetToken(
+  //   @Param('token') token: string,
+  // ): Promise<RequestResponse> {
+  //   return this.userService.verifyResetToken(token);
+  // }
 
   @SkipAuth()
   @Post('updatePassword')
   updatePassword(@Body() payload: UpdatePasswordDto): Promise<RequestResponse> {
-    return this.userService.updatePassword(payload.token, payload.password);
+    return this.userService.updatePassword(payload.email, payload.password);
   }
 
-  @SkipAuth()
-  @Post('changeEmail')
-  changeEmail(@Body() payload: ChangeEmailDto): Promise<RequestResponse> {
-    return this.userService.changeEmail(payload.email, payload.newEmail);
-  }
+  // @SkipAuth()
+  // @Post('changeEmail')
+  // changeEmail(@Body() payload: ChangeEmailDto): Promise<RequestResponse> {
+  //   return this.userService.changeEmail(payload.email, payload.newEmail);
+  // }
 }

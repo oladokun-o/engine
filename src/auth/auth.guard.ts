@@ -9,17 +9,16 @@ import { jwtConstants } from './constants';
 import { Request } from 'express';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'src/core/decorators/meta.decorator';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/entities/user.entity';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from 'src/schemas/user.schema';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private jwtService: JwtService,
     private reflector: Reflector,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -43,8 +42,8 @@ export class AuthGuard implements CanActivate {
       });
 
       // Check if token exists in the database
-      const isValidToken = await this.userRepository.findOne({
-        where: { id: payload.id, token },
+      const isValidToken = await this.userModel.findOne({
+        where: { _id: payload.id, token },
       });
       if (!isValidToken) {
         throw new UnauthorizedException('Invalid token');
