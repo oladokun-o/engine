@@ -43,7 +43,8 @@ export class AuthGuard implements CanActivate {
 
       // Check if token exists in the database
       const isValidToken = await this.userModel.findOne({
-        where: { _id: payload.id, token },
+        _id: payload.id,
+        token,
       });
       if (!isValidToken) {
         throw new UnauthorizedException('Invalid token');
