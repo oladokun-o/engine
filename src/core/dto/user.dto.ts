@@ -59,7 +59,7 @@ export class CreateUserDto {
   // @Validate(IsRussianPhoneNumberConstraint, {
   //   message: 'Phone number must be a valid Russian phone number!',
   // })
-  @IsNotEmpty()
+  // @IsNotEmpty()
   readonly phone: string;
 
   @IsEnum(Languages)

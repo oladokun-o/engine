@@ -115,19 +115,19 @@ export class UserService {
       }
 
       // check if user with phone number already exists
-      const userWithPhoneExists = await this.userModel
-        .findOne({
-          phone: createUserDto.phone,
-        })
-        .exec();
+      // const userWithPhoneExists = await this.userModel
+      //   .findOne({
+      //     phone: createUserDto.phone,
+      //   })
+      //   .exec();
 
-      if (userWithPhoneExists) {
-        return {
-          result: 'error',
-          message: 'User with phone number already exists',
-          data: null,
-        };
-      }
+      // if (userWithPhoneExists) {
+      //   return {
+      //     result: 'error',
+      //     message: 'User with phone number already exists',
+      //     data: null,
+      //   };
+      // }
 
       const { confirmPassword, ...rest } = createUserDto;
 
