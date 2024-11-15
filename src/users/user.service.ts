@@ -34,7 +34,7 @@ export class UserService {
         result: 'success',
         message: 'Users fetched successfully',
         data: users.map((u) => {
-          return { ...u.toObject() };
+          return { ...u.toObject(), profilePicture: u.profilePictureUrl };
         }),
       };
     } catch (error) {
@@ -57,10 +57,16 @@ export class UserService {
           data: null,
         };
       }
+
+      const userObject = {
+        ...user.toObject(),
+        profilePicture: user.profilePictureUrl,
+      };
+
       return {
         result: 'success',
         message: 'User fetched successfully',
-        data: { ...user.toObject(), password: undefined },
+        data: { ...userObject, password: undefined },
       };
     } catch (error) {
       throw new Error('Failed to fetch user.');
@@ -82,10 +88,15 @@ export class UserService {
           data: null,
         };
       }
+      const userObject = {
+        ...user.toObject(),
+        profilePicture: user.profilePictureUrl,
+      };
+
       return {
         result: 'success',
         message: 'User fetched successfully',
-        data: { ...user.toObject(), password: undefined },
+        data: { ...userObject, password: undefined },
       };
     } catch (error) {
       throw new Error('Failed to fetch user.');
