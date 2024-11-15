@@ -91,7 +91,11 @@ export class User extends Document {
 
   get profilePictureUrl(): string | null {
     if (this.profilePicture) {
-      return `${process.env.BACKEND_URL || 'https://qmemoirdrop.adaptable.app'}/uploads/${this.profilePicture}`;
+      const baseUrl =
+        process.env.NODE_ENV === 'production'
+          ? process.env.BACKEND_URL || 'https://qmemoir.adaptable.app'
+          : 'http://localhost:3000';
+      return `${baseUrl}/uploads/${this.profilePicture}`;
     }
     return null;
   }
@@ -100,8 +104,13 @@ export class User extends Document {
 export const UserSchema = SchemaFactory.createForClass(User);
 
 UserSchema.virtual('profilePictureUrl').get(function () {
+  const baseUrl =
+    process.env.NODE_ENV === 'production'
+      ? process.env.BACKEND_URL || 'https://qmemoir.adaptable.app'
+      : 'http://localhost:3000';
+
   if (this.profilePicture) {
-    return `${process.env.BACKEND_URL || 'https://qmemoirdrop.adaptable.app'}/uploads/${this.profilePicture}`;
+    return `${baseUrl}/uploads/${this.profilePicture}`;
   }
   return null;
 });
