@@ -1,386 +1,319 @@
-// import {
-//   BadRequestException,
-//   Injectable,
-//   NotFoundException,
-// } from '@nestjs/common';
-// import { InjectRepository } from '@nestjs/typeorm';
-// // import { User } from 'src/entities/user.entity';
-// import { Repository } from 'typeorm';
-// import { RequestResponse } from '../core/interfaces/index.interface';
-// import { EmailService } from '../core/services/mailer.service';
-// import {
-//   ChangeAddressDto,
-//   ChangeLanguageDto,
-//   UpdateCommunicationPreferencesDto,
-//   updateProfileDto,
-// } from 'src/core/dto/settings.dto';
-// import { compare, hash } from 'bcrypt';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { RequestResponse } from '../core/interfaces/index.interface';
+import { EmailService } from '../core/services/mailer.service';
+import {
+  ChangeAddressDto,
+  ChangeLanguageDto,
+  UpdateCommunicationPreferencesDto,
+  updateProfileDto,
+} from 'src/core/dto/settings.dto';
+import { compare, hash } from 'bcrypt';
+import { User } from '../schemas/user.schema';
 
-// @Injectable()
-// export class SettingsService {
-//   constructor(
-//     @InjectRepository(User)
-//     private userRepository: Repository<User>,
-//     private mailerService: EmailService,
-//   ) {}
+@Injectable()
+export class SettingsService {
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private mailerService: EmailService,
+  ) {}
 
-//   // User profile settings
-//   /**
-//    * Change email address
-//    * @param {string} email
-//    * @param {string} newEmail
-//    * @returns {Promise<RequestResponse>}
-//    */
-//   async changeEmail(
-//     id: string,
-//     email: string,
-//     newEmail: string,
-//   ): Promise<RequestResponse | BadRequestException> {
-//     try {
-//       const user = await this.userRepository.findOne({ where: { id, email } });
+  /**
+   * Change email address
+   */
+  async changeEmail(
+    id: string,
+    email: string,
+    newEmail: string,
+  ): Promise<RequestResponse | BadRequestException> {
+    try {
+      const user = await this.userModel.findOne({ _id: id, email });
 
-//       if (!user) {
-//         return {
-//           result: 'error',
-//           message: 'User not found',
-//           data: null,
-//         };
-//       }
+      if (!user) {
+        return { result: 'error', message: 'User not found', data: null };
+      }
 
-//       if (user.email === newEmail) {
-//         return new BadRequestException('Emails are the same');
-//       }
+      if (user.email === newEmail) {
+        throw new BadRequestException('Emails are the same');
+      }
 
-//       const userWithEmailExists = await this.userRepository.findOne({
-//         where: { email: newEmail },
-//       });
+      const userWithEmailExists = await this.userModel.findOne({
+        email: newEmail,
+      });
+      if (userWithEmailExists) {
+        throw new BadRequestException('User with email already exists');
+      }
 
-//       if (userWithEmailExists) {
-//         return new BadRequestException('User with email already exists');
-//       }
+      user.email = newEmail;
+      user.settings.verified = false;
+      await user.save();
 
-//       await this.userRepository.update(user.id, {
-//         email: newEmail,
-//         settings: { verified: false },
-//       });
+      // Send welcome email
+      const message = `Hello ${user.firstName}, your email address was successfully changed.`;
+      if (user.settings.notificationsEmail)
+        await this.mailerService.sendEmail(
+          'support',
+          user.email,
+          'Your email address was changed',
+          message,
+        );
 
-//       // Send welcome email to user
-//       const message = `Hello ${user.firstName}, your email address was successfully changed.`;
-//       if (user.settings.notificationsEmail)
-//         await this.mailerService.sendEmail(
-//           'team',
-//           user.email,
-//           'Your email address was changed',
-//           message,
-//         );
+      return {
+        result: 'success',
+        message: 'Email updated successfully!',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to update email',
+        data: null,
+      };
+    }
+  }
 
-//       return {
-//         result: 'success',
-//         message: 'Email updated successfully!',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to update email',
-//         data: null,
-//       };
-//     }
-//   }
+  /**
+   * Change phone number
+   */
+  async changePhoneNumber(
+    userId: string,
+    newPhoneNumber: string,
+  ): Promise<RequestResponse> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        return { result: 'error', message: 'User not found', data: null };
+      }
 
-//   /**
-//    * Change phone number
-//    * @param {string} email
-//    * @param {string} newPhoneNumber
-//    * @returns {Promise<RequestResponse>}
-//    */
-//   async changePhoneNumber(
-//     userId: string,
-//     newPhoneNumber: string,
-//   ): Promise<RequestResponse> {
-//     try {
-//       const user = await this.userRepository.findOne({ where: { id: userId } });
+      user.phone = newPhoneNumber;
+      await user.save();
 
-//       if (!user) {
-//         return {
-//           result: 'error',
-//           message: 'User not found',
-//           data: null,
-//         };
-//       }
+      // Send notification email
+      const message = `Hello ${user.firstName}, your phone number was successfully changed.`;
+      if (user.settings.notificationsEmail)
+        await this.mailerService.sendEmail(
+          'support',
+          user.email,
+          'Your phone number was changed',
+          message,
+        );
 
-//       await this.userRepository.update(user.id, {
-//         phone: newPhoneNumber,
-//       });
+      return {
+        result: 'success',
+        message: 'Phone number updated successfully',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to update phone number',
+        data: null,
+      };
+    }
+  }
 
-//       // Send welcome email to user
-//       const message = `Hello ${user.firstName}, your phone number was successfully changed.`;
-//       if (user.settings.notificationsEmail)
-//         await this.mailerService.sendEmail(
-//           'team',
-//           user.email,
-//           'Your phone number was changed',
-//           message,
-//         );
+  /**
+   * Change address
+   */
+  async changeAddress(
+    userId: string,
+    payload: ChangeAddressDto,
+  ): Promise<RequestResponse> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-//       return {
-//         result: 'success',
-//         message: 'Phone number updated successfully',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to update phone number',
-//         data: null,
-//       };
-//     }
-//   }
+      user.address = payload;
+      await user.save();
 
-//   /**
-//    * Change address
-//    * @param {string} email
-//    * @param {string} addressStreet
-//    * @param {string} addressCity
-//    * @param {string} addressState
-//    * @param {string} addressPostalCode
-//    * @param {string} addressCountry
-//    * @returns {Promise<RequestResponse>}
-//    */
-//   async changeAddress(
-//     userId: string,
-//     payload: ChangeAddressDto,
-//   ): Promise<RequestResponse | BadRequestException> {
-//     try {
-//       const user = await this.userRepository.findOne({ where: { id: userId } });
+      return {
+        result: 'success',
+        message: 'Address updated successfully',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to update address',
+        data: null,
+      };
+    }
+  }
 
-//       if (!user) {
-//         return new BadRequestException('User not found');
-//       }
+  /**
+   * Update profile
+   */
+  async updateProfile(
+    userId: string,
+    profilePicture: Express.Multer.File,
+    payload: updateProfileDto,
+  ): Promise<RequestResponse> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        return { result: 'error', message: 'User not found', data: null };
+      }
 
-//       await this.userRepository.update(user.id, { ...payload });
+      user.firstName = payload.firstName;
+      user.middleName = payload.middlename || '';
+      user.lastName = payload.lastName;
 
-//       return {
-//         result: 'success',
-//         message: 'Address updated successfully',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to update address',
-//         data: null,
-//       };
-//     }
-//   }
+      if (profilePicture) {
+        user.profilePicture = profilePicture.filename;
+      }
 
-//   /**
-//    *
-//    * @param {string} id
-//    * @param {string} profilePicture
-//    * @returns {Promise<RequestResponse>}
-//    */
-//   async updateProfile(
-//     userId: string,
-//     profilePicture: Express.Multer.File,
-//     payload: updateProfileDto,
-//   ): Promise<RequestResponse> {
-//     try {
-//       const user = await this.userRepository.findOne({
-//         where: { id: userId },
-//       });
+      await user.save();
 
-//       if (!user) {
-//         return {
-//           result: 'error',
-//           message: 'User not found',
-//           data: null,
-//         };
-//       }
+      return {
+        result: 'success',
+        message: 'Profile updated successfully',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to update profile',
+        data: null,
+      };
+    }
+  }
 
-//       // Build update data
-//       const updateData: Partial<User> = {
-//         firstName: payload.firstName,
-//         middleName: payload.middlename || '',
-//         lastName: payload.lastName,
-//       };
+  /**
+   * Update communication preferences
+   */
+  async updateCommunicationPreferences(
+    dto: UpdateCommunicationPreferencesDto,
+    userId: string,
+  ): Promise<RequestResponse> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        return { result: 'error', message: 'User not found', data: null };
+      }
 
-//       // Only update profile picture if a file is uploaded
-//       if (profilePicture) {
-//         updateData.profilePicture = profilePicture.filename;
-//       }
+      user.settings.notificationsEmail = dto.notificationsEmail;
+      user.settings.notificationsSms = dto.notificationsSms;
+      user.settings.securityTwoFactorAuth = dto.securityTwoFactorAuth;
 
-//       await this.userRepository.update(user.id, updateData);
+      await user.save();
 
-//       return {
-//         result: 'success',
-//         message: 'Profile updated successfully',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to update profile',
-//         data: null,
-//       };
-//     }
-//   }
+      return {
+        result: 'success',
+        message: 'Communication preferences updated successfully',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to update communication preferences',
+        data: null,
+      };
+    }
+  }
 
-//   /**
-//    * Update communication preferences for a user.
-//    * @param {string} userId - User ID to identify the user.
-//    * @param {boolean} notificationsEmail - Flag to enable/disable email notifications.
-//    * @param {boolean} notificationsSms - Flag to enable/disable SMS notifications.
-//    * @param {boolean} securityTwoFactorAuth - Flag to enable/disable two-factor authentication.
-//    * @returns {Promise<RequestResponse>} - Request response indicating success or error.
-//    */
-//   async updateCommunicationPreferences(
-//     dto: UpdateCommunicationPreferencesDto,
-//     userId: string,
-//   ): Promise<RequestResponse> {
-//     try {
-//       const user = await this.userRepository.findOne({
-//         where: { id: userId },
-//       });
+  /**
+   * Change password
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<RequestResponse | BadRequestException> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        return { result: 'error', message: 'User not found', data: null };
+      }
 
-//       if (!user) {
-//         return {
-//           result: 'error',
-//           message: 'User not found',
-//           data: null,
-//         };
-//       }
+      const isPasswordValid = await compare(currentPassword, user.password);
+      if (!isPasswordValid) {
+        throw new BadRequestException('Current password is incorrect');
+      }
 
-//       // Update user's communication preferences
-//       user.settings.notificationsEmail = dto.notificationsEmail;
-//       user.settings.notificationsSms = dto.notificationsSms;
-//       user.settings.securityTwoFactorAuth = dto.securityTwoFactorAuth;
+      user.password = await hash(newPassword, 10);
+      await user.save();
 
-//       await this.userRepository.update(user.id, user);
+      const message = `Hello ${user.firstName}, your password was successfully changed.`;
+      if (user.settings.notificationsEmail)
+        await this.mailerService.sendEmail(
+          'support',
+          user.email,
+          'Your password was changed',
+          message,
+        );
 
-//       return {
-//         result: 'success',
-//         message: 'Communication preferences updated successfully',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to update communication preferences',
-//         data: null,
-//       };
-//     }
-//   }
+      return {
+        result: 'success',
+        message: 'Password updated successfully',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to update password',
+        data: null,
+      };
+    }
+  }
 
-//   // Security settings
+  /**
+   * Get user settings
+   */
+  async getSettings(userId: string): Promise<RequestResponse> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-//   /**
-//    * Change user password
-//    * @param {string} userId
-//    * @param {string} currentPassword
-//    * @param {string} newPassword
-//    * @returns {Promise<RequestResponse>}
-//    */
-//   async changePassword(
-//     userId: string,
-//     currentPassword: string,
-//     newPassword: string,
-//   ): Promise<RequestResponse | BadRequestException> {
-//     try {
-//       const user = await this.userRepository.findOne({ where: { id: userId } });
+      return {
+        result: 'success',
+        message: 'User settings fetched successfully',
+        data: user.settings,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || "Failed to fetch user's settings",
+        data: null,
+      };
+    }
+  }
 
-//       if (!user) {
-//         return {
-//           result: 'error',
-//           message: 'User not found',
-//           data: null,
-//         };
-//       }
+  /**
+   * Update language
+   */
+  async updateLanguage(
+    userId: string,
+    changeLanguageDto: ChangeLanguageDto,
+  ): Promise<RequestResponse> {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-//       const isPasswordValid = await compare(currentPassword, user.password);
+      user.settings.language = changeLanguageDto.language;
+      await user.save();
 
-//       if (!isPasswordValid) {
-//         return new BadRequestException('Current password is incorrect');
-//       }
-
-//       const hashedPassword = await hash(newPassword, 10);
-//       await this.userRepository.update(user.id, { password: hashedPassword });
-
-//       // Send welcome email to user
-//       const message = `Hello ${user.firstName}, your password was successfully changed.`;
-//       if (user.settings.notificationsEmail)
-//         await this.mailerService.sendEmail(
-//           'team',
-//           user.email,
-//           'Your password was changed',
-//           message,
-//         );
-
-//       return {
-//         result: 'success',
-//         message: 'Password updated successfully',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to update password',
-//         data: null,
-//       };
-//     }
-//   }
-
-//   //Others
-
-//   async getSettings(userId: string): Promise<RequestResponse> {
-//     try {
-//       const user = await this.userRepository.findOne({
-//         where: { id: userId },
-//       });
-//       if (!user) {
-//         throw new NotFoundException('User not found');
-//       }
-
-//       return {
-//         result: 'success',
-//         message: 'User settings fetched successfully',
-//         data: user.settings,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || "Failed to fetch user's settings",
-//         data: null,
-//       };
-//     }
-//   }
-
-//   async updateLanguage(
-//     userId: string,
-//     changeLanguageDto: ChangeLanguageDto,
-//   ): Promise<RequestResponse> {
-//     try {
-//       const user = await this.userRepository.findOne({
-//         where: { id: userId },
-//       });
-//       if (!user) {
-//         throw new NotFoundException('User not found');
-//       }
-
-//       user.settings.language = changeLanguageDto.language;
-//       await this.userRepository.update(user.id, user);
-
-//       return {
-//         result: 'success',
-//         message: 'Language changed successfully',
-//         data: null,
-//       };
-//     } catch (error) {
-//       return {
-//         result: 'error',
-//         message: error.message || 'Failed to change language',
-//         data: null,
-//       };
-//     }
-//   }
-// }
+      return {
+        result: 'success',
+        message: 'Language changed successfully',
+        data: null,
+      };
+    } catch (error) {
+      return {
+        result: 'error',
+        message: error.message || 'Failed to change language',
+        data: null,
+      };
+    }
+  }
+}

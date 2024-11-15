@@ -5,6 +5,35 @@ import { Payment } from './payment.schema';
 import { Settings } from './settings.schema';
 import { UserRole } from 'src/core/interfaces/user.interface';
 
+@Schema()
+export class Address {
+  @Prop({ type: String, nullable: true, default: null })
+  street: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  city: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  state: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  postalCode: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  country: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  floor: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  zipCode: string;
+
+  @Prop({ type: String, nullable: true, default: null })
+  apartmentNumber: string;
+}
+
+export const AddressSchema = SchemaFactory.createForClass(Address);
+
 export type UserDocument = User & Document;
 
 @Schema()
@@ -30,29 +59,8 @@ export class User extends Document {
   @Prop({ type: String, nullable: true, default: null })
   profilePicture: string;
 
-  @Prop({ type: String, nullable: true, default: null })
-  addressStreet: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  addressCity: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  addressState: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  floor: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  zip_code: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  apartment_number: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  addressPostalCode: string;
-
-  @Prop({ type: String, nullable: true, default: null })
-  addressCountry: string;
+  @Prop({ type: AddressSchema, default: () => ({}) })
+  address: Address;
 
   @Prop({ type: String, default: UserRole.CUSTOMER })
   role: UserRole;

@@ -148,21 +148,21 @@ export class UserService {
       await user.save();
 
       // Send welcome email to user
-      // const message = `Welcome to our platform, ${createUserDto.firstName}!`;
-      // await this.mailerService.sendEmail(
-      //   'team',
-      //   createUserDto.email,
-      //   'Welcome to qmemoirdrop!',
-      //   message,
-      // );
+      const message = `Welcome to our platform, ${createUserDto.firstName}!`;
+      await this.mailerService.sendEmail(
+        'support',
+        createUserDto.email,
+        'Welcome to qmemoirdrop!',
+        message,
+      );
 
       // Generate OTP for user verification and send it to the user
-      // const otpResponse = await this.generateOtp(createUserDto.email);
+      const otpResponse = await this.generateOtp(createUserDto.email);
 
-      // if (otpResponse.result === 'error') {
-      // Handle error generating OTP
-      //   return otpResponse;
-      // }
+      if (otpResponse.result === 'error') {
+        // Handle error generating OTP
+        return otpResponse;
+      }
 
       return {
         result: 'success',
@@ -203,15 +203,24 @@ export class UserService {
       if (oldOtp && resend) {
         await this.otpModel.deleteOne({ _id: oldOtp._id }).exec();
       }
-      const newOtp = new this.otpModel({ userId: user._id, otp });
+
+      // Set the expiration date 5 minutes from now
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+      // Include the expiration date in the new OTP document
+      const newOtp = new this.otpModel({
+        userId: user._id,
+        otp,
+        expires_at: expiresAt,
+      });
       await newOtp.save();
 
-      const message = `Your verification code is ${otp} /n This code expires in 5 minutes.`;
+      const message = `Your verification code is ${otp}. \nThis code expires in 5 minutes.`;
       await this.mailerService.sendEmail(
-        'team',
-        user.email,
-        'Verification Code',
-        message,
+        'support', // sender
+        user.email, // recipient
+        'Verification Code', // subject
+        message, // message
       );
 
       return {
@@ -384,7 +393,7 @@ export class UserService {
       `;
 
       await this.mailerService.sendEmail(
-        'team',
+        'support',
         user.email,
         'Password Reset Request',
         message,

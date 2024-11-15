@@ -11,11 +11,11 @@ export class EmailService {
   ) {
     // Create a Nodemailer transporter
     const transporter = nodemailer.createTransport({
-      host: 'mail.hosting.reg.ru',
+      host: 'mail.qmemoir.com',
       port: 465,
       secure: true,
       auth: {
-        user: user + '@footiedrop.ru',
+        user: user + '@qmemoir.com',
         pass: process.env.EMAIL_PASSWORD,
       },
     });

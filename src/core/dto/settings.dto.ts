@@ -48,17 +48,17 @@ export class ChangeAddressDto {
   @IsNotEmpty()
   @IsString()
   @Length(5, 100)
-  readonly addressStreet: string;
+  readonly street: string;
 
   @IsNotEmpty()
   @IsString()
   @Length(2, 50)
-  readonly addressCity: string;
+  readonly city: string;
 
   @IsOptional()
   @IsString()
   @Length(2, 50)
-  readonly addressState: string;
+  readonly state: string;
 
   @IsOptional()
   @IsString()
@@ -68,22 +68,22 @@ export class ChangeAddressDto {
   @IsOptional()
   @IsString()
   @Length(2, 50)
-  readonly apartment_number: string;
+  readonly apartmentNumber: string;
 
   @IsOptional()
   @IsString()
   @Length(2, 50)
-  readonly zip_code: string;
+  readonly zipCode: string;
 
   @IsOptional()
   @IsString()
   @Length(2, 20)
-  readonly addressPostalCode: string;
+  readonly postalCode: string;
 
   @IsNotEmpty()
   @IsString()
   @Length(2, 50)
-  readonly addressCountry: string;
+  readonly country: string;
 }
 
 /**

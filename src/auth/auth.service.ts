@@ -60,14 +60,14 @@ export class AuthService {
         };
       }
 
-      const jwtPayload = { email: user.email, id: user.id };
+      const jwtPayload = { email: user.email, id: user._id };
 
       // get token
       const token = await this.jwtService.signAsync(jwtPayload);
 
       // Update last login date
       await this.userModel.updateOne(
-        { _id: user.id },
+        { _id: user._id },
         {
           $set: { lastLogin: new Date(), token: token },
         },
@@ -78,7 +78,7 @@ export class AuthService {
         message: 'User logged in successfully',
         data: {
           token: token,
-          userId: user.id,
+          userId: user._id,
           email: user.email,
           role: user.role,
         },
@@ -135,14 +135,14 @@ export class AuthService {
         };
       }
 
-      const jwtPayload = { email: user.email, id: user.id };
+      const jwtPayload = { email: user.email, id: user._id };
 
       // get token
       const token = await this.jwtService.signAsync(jwtPayload);
 
       // Update last login date
       await this.userModel.updateOne(
-        { _id: user.id },
+        { _id: user._id },
         {
           $set: { lastLogin: new Date(), token: token },
         },
@@ -153,7 +153,7 @@ export class AuthService {
         message: 'User logged in successfully',
         data: {
           token: token,
-          userId: user.id,
+          userId: user._id,
           email: user.email,
           role: user.role,
         },
@@ -215,7 +215,7 @@ export class AuthService {
 
       // delete token
       await this.userModel.updateOne(
-        { _id: user.id },
+        { _id: user._id },
         {
           $set: { token: null },
         },

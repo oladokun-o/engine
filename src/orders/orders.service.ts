@@ -29,7 +29,7 @@
 //     try {
 //       const user = await this.userRepository.findOne({
 //         where: {
-//           id: jwtUser.id,
+//           id: jwtuser._id,
 //           email: jwtUser.email,
 //         },
 //       });
@@ -44,7 +44,7 @@
 
 //       const neworder = await this.orderRepository.save({
 //         ...newOrderDTO,
-//         user: user.id as any,
+//         user: user._id as any,
 //       });
 
 //       return {

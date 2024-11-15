@@ -5,14 +5,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UserModule } from './users/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
-// import { SettingsModule } from './settings/settings.module';
+import { SettingsModule } from './settings/settings.module';
 // import { OrdersModule } from './orders/orders.module';
 // import { MessageModule } from './messages/message.module';
 
 const Modules = [
   AuthModule,
   UserModule,
-  // SettingsModule,
+  SettingsModule,
   // OrdersModule,
   // MessageModule,
 ];
